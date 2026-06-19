@@ -1,8 +1,4 @@
-# CI pipeline: runs on every push to master.
-# 1) test
-# 2) build image tagged with the build number, push to ghcr
-# 3) update the image tag in the config repo so ArgoCD deploys it
-
+# CI: on every push to master -> test, build image, deploy to STAGING.
 name: CI
 
 on:
@@ -10,13 +6,11 @@ on:
     branches: [master]
 
 jobs:
-  build-and-deploy:
+  build-and-deploy-staging:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout app repo
         uses: actions/checkout@v4
@@ -39,7 +33,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build the image tagged with the build number (github.run_number).
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -47,15 +40,14 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.run_number }}
 
-      # Clone the config repo, update the image tag in deployment.yaml, push.
-      - name: Update config repo
+      # Update the STAGING deployment with the new build number.
+      - name: Update staging config
         run: |
           git clone https://x-access-token:${{ secrets.CONFIG_REPO_TOKEN }}@github.com/arasrasouli/node-gitops-config.git config
           cd config
-          # Replace the image line with the new build number tag.
-          sed -i "s|image: ghcr.io/arasrasouli/node-gitops-app:.*|image: ghcr.io/arasrasouli/node-gitops-app:${{ github.run_number }}|" deployment.yaml
+          sed -i "s|image: ghcr.io/arasrasouli/node-gitops-app:.*|image: ghcr.io/arasrasouli/node-gitops-app:${{ github.run_number }}|" staging/deployment.yaml
           git config user.name "ci-bot"
           git config user.email "ci-bot@example.com"
-          git add deployment.yaml
-          git commit -m "Update image to build ${{ github.run_number }}"
+          git add staging/deployment.yaml
+          git commit -m "staging: update image to build ${{ github.run_number }}"
           git push
