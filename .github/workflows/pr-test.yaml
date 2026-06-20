@@ -1,0 +1,22 @@
+# Runs on every PR to master, and on every new commit pushed to that PR.
+# Tests only - this is the gate before merge. No build, no deploy.
+name: PR Test
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
